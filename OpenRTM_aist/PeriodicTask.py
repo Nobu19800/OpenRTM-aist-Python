@@ -90,9 +90,7 @@ class PeriodicTask(OpenRTM_aist.Task):
     #
 
     def __del__(self, Task=OpenRTM_aist.Task):
-        self.finalize()
-        self.wait()
-        Task.__del__(self)
+        return
 
     ##
     # @if jp

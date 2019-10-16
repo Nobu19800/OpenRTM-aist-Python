@@ -25,11 +25,6 @@ class Task:
         return
 
     def __del__(self):
-        self._count = 0
-        # if self._thread:
-        #  if self._thread.isAlive():
-        #    self._thread.join()
-        self._thread = None
         return
 
     def open(self, args=None):
