@@ -474,6 +474,9 @@ class ModuleManager:
         # for new
         comp_spec_name = classname + "_spec"
 
+        if not self.fileExist(fullname):
+            return None
+
         try:
             code = "UTF-8-SIG"
             import chardet
