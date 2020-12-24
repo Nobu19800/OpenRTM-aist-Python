@@ -208,7 +208,7 @@ openrtm_ext_packages = [
     "OpenRTM_aist.ext.sdo.observer",
     "OpenRTM_aist.ext.ssl",
     "OpenRTM_aist.ext.logger",
-    "OpenRTM_aist.ext.logger.fluentbit_stream",
+    "OpenRTM_aist.ext.logger.FluentLogger",
     "OpenRTM_aist.ext.transport",
     "OpenRTM_aist.ext.transport.ROSTransport",
     "OpenRTM_aist.ext.transport.ROS2Transport",
