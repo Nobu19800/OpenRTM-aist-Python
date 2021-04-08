@@ -1424,13 +1424,8 @@ class InPortBase(OpenRTM_aist.PortBase, OpenRTM_aist.DataPortStatus):
                                              prop)
         connector = None
         try:
-            if self._singlebuffer:
-                connector = OpenRTM_aist.InPortDuplexConnector(profile, provider_,
-                                                               self._listeners,
-                                                               self._thebuffer)
-            else:
-                connector = OpenRTM_aist.InPortDuplexConnector(profile, provider_,
-                                                               self._listeners)
+            connector = OpenRTM_aist.InPortDuplexConnector(profile, provider_,
+                                                           self._listeners)
 
             self._rtcout.RTC_TRACE("InPortDuplexConnector created")
 

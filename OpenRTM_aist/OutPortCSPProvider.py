@@ -60,9 +60,9 @@ class OutPortCSPProvider(OpenRTM_aist.OutPortProvider, CSP__POA.OutPortCsp):
         self._objref = self._this()
         self._buffer = None
         orb = OpenRTM_aist.Manager.instance().getORB()
-        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.corba_cdr.outport_ior",
+        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.csp_channel.outport_ior",
                                                           orb.object_to_string(self._objref)))
-        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.corba_cdr.outport_ref",
+        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.csp_channel.outport_ref",
                                                           self._objref))
         self._listeners = None
         self._connector = None
@@ -186,9 +186,10 @@ class OutPortCSPProvider(OpenRTM_aist.OutPortProvider, CSP__POA.OutPortCsp):
     #
 
     def is_readable(self, retry):
-        self._rtcout.RTC_PARANOID("is_readable()")
+        self._rtcout.RTC_PARANOID("is_readable(%d)", (retry))
         if self._connector:
             return self._connector.isReadable(retry)
+        self._rtcout.RTC_ERROR("self._connector is None.")
         return False
 
     def onBufferRead(self, data):

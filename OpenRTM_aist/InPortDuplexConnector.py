@@ -69,7 +69,6 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
         if not self._provider:
             raise
 
-        self._buffer = None
         self._info = info
         self._provider.init(info.properties)
         self._provider.setListener(info, self._listeners)
@@ -165,6 +164,7 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
     def read(self, data=None):
         self._rtcout.RTC_TRACE("read()")
         if not self._dataType:
+            self._rtcout.RTC_ERROR("self._dataType is not set.")
             return self.PRECONDITION_NOT_MET
         ret, cdr = self.readBuff()
         if ret != self.PORT_OK:
@@ -188,8 +188,10 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
     # @endif
 
     def isReadable(self, retry=False):
+        self._rtcout.RTC_TRACE("isReadable()")
         if self._consumer:
             return self._consumer.isReadable(retry)
+        self._rtcout.RTC_ERROR("self._consumer is None")
         return False
 
     ##
@@ -322,8 +324,10 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
     # ReturnCode write(const OpenRTM::CdrData& data);
 
     def write(self, data):
+        self._rtcout.RTC_TRACE("write()")
         if self._writeCallback:
             return self._writeCallback(data)
+        self._rtcout.RTC_ERROR("self._writeCallback is None")
         return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
 
     #
@@ -339,8 +343,10 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
     # @return
     # @endif
     def isWritable(self, retry=False):
+        self._rtcout.RTC_TRACE("isWritable(%d)", (retry))
         if self._isWritableCallback:
             return self._isWritableCallback(self, retry)
+        self._rtcout.RTC_ERROR("self._isWritableCallback is None")
         return False
 
     #
@@ -378,7 +384,8 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
     # void onConnect()
     def onConnect(self):
         if self._listeners and self._profile:
-            self._listeners.notify(OpenRTM_aist.ConnectorListenerType.ON_CONNECT, self._profile)
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_CONNECT, self._profile)
         return
 
     ##
@@ -390,7 +397,8 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
     # void onDisconnect()
     def onDisconnect(self):
         if self._listeners and self._profile:
-            self._listeners.notify(OpenRTM_aist.ConnectorListenerType.ON_DISCONNECT, self._profile)
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_DISCONNECT, self._profile)
         return
 
     ##
@@ -405,17 +413,20 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
 
     def onBufferRead(self, data):
         if self._listeners and self._profile:
-            _, data = self._listeners.notifyData(OpenRTM_aist.ConnectorDataListenerType.ON_BUFFER_READ, self._profile, data)
+            _, data = self._listeners.notifyData(
+                OpenRTM_aist.ConnectorDataListenerType.ON_BUFFER_READ, self._profile, data)
         return data
 
     def onBufferEmpty(self, data):
         if self._listeners and self._profile:
-            self._listeners.notify(OpenRTM_aist.ConnectorListenerType.ON_BUFFER_EMPTY, self._profile)
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_BUFFER_EMPTY, self._profile)
         return
 
     def onBufferReadTimeout(self, data):
         if self._listeners and self._profile:
-            self._listeners.notify(OpenRTM_aist.ConnectorListenerType.ON_BUFFER_READ_TIMEOUT, self._profile)
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_BUFFER_READ_TIMEOUT, self._profile)
         return
 
     ##
@@ -469,76 +480,7 @@ class InPortDuplexConnector(OpenRTM_aist.InPortConnector):
         if self._consumer:
             self._consumer.unsubscribeInterface(prop)
 
-
     def setDataType(self, data):
         OpenRTM_aist.InPortConnector.setDataType(self, data)
-        self._serializer = OpenRTM_aist.SerializerFactories.instance().createSerializer(self._marshaling_type, data)
-
-
-##
-# @if jp
-# @class WriteListenerBase
-# @brief WriteListenerBase クラス
-#
-# 書き込み時リスナのベースクラス
-#
-# @since 2.0.0
-#
-# @else
-# @class WriteListenerBase
-# @brief WriteListenerBase class
-#
-#
-# @since 2.0.0
-#
-# @endif
-#
-class WriteListenerBase(object):
-    ##
-    # @if jp
-    # @brief 仮想コールバック関数
-    # @param self
-    # @param data 書き込むバイト列のデータ
-    # @else
-    # @brief Destructor
-    # @param self
-    # @param data 書き込むバイト列のデータ
-    # @endif
-    def __call__(self, data):
-        return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
-
-##
-# @if jp
-# @class IsWritableListenerBase
-# @brief IsWritableListenerBase クラス
-#
-# 書き込み確認時リスナのベースクラス
-#
-# @since 2.0.0
-#
-# @else
-# @class IsWritableListenerBase
-# @brief IsWritableListenerBase class
-#
-#
-# @since 2.0.0
-#
-# @endif
-#
-
-
-class IsWritableListenerBase(object):
-    ##
-    # @if jp
-    # @brief 仮想コールバック関数
-    # @param self
-    # @param con InPortConnector
-    # @return True：書き込み可、False：書き込み不可
-    # @else
-    # @brief Destructor
-    # @param self
-    # @param con
-    # @return
-    # @endif
-    def __call__(self, con):
-        return False
+        self._serializer = OpenRTM_aist.SerializerFactories.instance(
+        ).createSerializer(self._marshaling_type, data)

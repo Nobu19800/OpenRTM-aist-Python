@@ -29,7 +29,7 @@ import CSP
 #
 # @endif
 #
-class InPortCSPConsumer(OpenRTM_aist.InPortCorbaCdrConsumer):
+class InPortCSPConsumer(OpenRTM_aist.InPortCorbaConsumerBase):
 
     """
     """
@@ -53,10 +53,9 @@ class InPortCSPConsumer(OpenRTM_aist.InPortCorbaCdrConsumer):
     # @endif
     #
     def __init__(self):
-        OpenRTM_aist.InPortCorbaCdrConsumer.__init__(self)
-        OpenRTM_aist.CorbaConsumer.__init__(self, CSP.InPortCsp)
+        OpenRTM_aist.InPortCorbaConsumerBase.__init__(
+            self, CSP.InPortCsp, "csp_channel")
         self._rtcout = OpenRTM_aist.Manager.instance().getLogbuf("InPortCSPConsumer")
-        self._properties = None
         return
 
     ##
@@ -78,45 +77,7 @@ class InPortCSPConsumer(OpenRTM_aist.InPortCorbaCdrConsumer):
     #
     def __del__(self, CorbaConsumer=OpenRTM_aist.CorbaConsumer):
         self._rtcout.RTC_PARANOID("~InPortCSPConsumer()")
-        CorbaConsumer.__del__(self)
-
-    # void init(coil::Properties& prop)
-
-    def init(self, prop):
-        self._rtcout.RTC_TRACE("init()")
-        self._properties = prop
-
-    ##
-    # @if jp
-    # @brief バッファをセットする
-    #
-    #
-    # @param buffer OutPortProviderがデータを取り出すバッファへのポインタ
-    #
-    # @else
-    # @brief Setting outside buffer's pointer
-    #
-    # @param buffer A pointer to a data buffer to be used by OutPortProvider
-    #
-    # @endif
-    #
-    # virtual void setBuffer(CdrBufferBase* buffer);
-
-    def setBuffer(self, buffer):
-        pass
-
-    # void OutPortCorbaCdrConsumer::setListener(ConnectorInfo& info,
-    #                                           ConnectorListeners* listeners)
-
-    def setListener(self, info, listeners):
-        self._rtcout.RTC_TRACE("setListener()")
-        self._listeners = listeners
-        self._profile = info
-        return
-
-    def setConnector(self, connector):
-        self._connector = connector
-        return
+        OpenRTM_aist.InPortCorbaConsumerBase.__del__(self)
 
     ##
     # @if jp
@@ -143,8 +104,9 @@ class InPortCSPConsumer(OpenRTM_aist.InPortCorbaCdrConsumer):
     #
     # @endif
     #
+
     def put(self, data):
-        self._rtcout.RTC_PARANOID("get()")
+        self._rtcout.RTC_PARANOID("put()")
 
         try:
             outportcsp = self._ptr()
@@ -175,6 +137,7 @@ class InPortCSPConsumer(OpenRTM_aist.InPortCorbaCdrConsumer):
     #
     # @endif
     #
+
     def isWritable(self, retry=False):
         self._rtcout.RTC_PARANOID("isWritable()")
         try:
@@ -186,6 +149,34 @@ class InPortCSPConsumer(OpenRTM_aist.InPortCorbaCdrConsumer):
             self._rtcout.RTC_WARN("Exception caught from InPort.isWritable().")
             self._rtcout.RTC_ERROR(OpenRTM_aist.Logger.print_exception())
             return False
+
+    ##
+    # @if jp
+    # @brief リターンコード変換
+    # @else
+    # @brief Return codes conversion
+    # @endif
+    #
+    # ReturnCode convertReturnCode(OpenRTM::PortStatus ret)
+
+    def convertReturnCode(self, ret):
+        if ret == OpenRTM.PORT_OK:
+            return self.PORT_OK
+
+        elif ret == OpenRTM.PORT_ERROR:
+            return self.PORT_ERROR
+
+        elif ret == OpenRTM.BUFFER_FULL:
+            return self.SEND_FULL
+
+        elif ret == OpenRTM.BUFFER_TIMEOUT:
+            return self.SEND_TIMEOUT
+
+        elif ret == OpenRTM.UNKNOWN_ERROR:
+            return self.UNKNOWN_ERROR
+
+        else:
+            return self.UNKNOWN_ERROR
 
 
 def InPortCSPConsumerInit():

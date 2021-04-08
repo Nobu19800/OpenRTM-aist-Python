@@ -21,18 +21,18 @@ import threading
 ##
 # @if jp
 #
-# @class EventInPort
+# @class CSPOutPort
 #
-# @brief EventInPort テンプレートクラス
+# @brief CSPOutPort テンプレートクラス
 #
 #
 # @since 2.0.0
 #
 # @else
 #
-# @class EventInPort
+# @class CSPOutPort
 #
-# @brief EventInPort template class
+# @brief CSPOutPort template class
 #
 #
 # @since 2.0.0
@@ -48,8 +48,8 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
     # コンストラクタ。
     # パラメータとして与えられる T 型の変数にバインドされる。
     #
-    # @param name EventInPort 名。EventInPortBase:name() により参照される。
-    # @param value この EventInPort にバインドされる T 型の変数
+    # @param name CSPOutPort 名。CSPOutPortBase:name() により参照される。
+    # @param value この CSPOutPort にバインドされる T 型の変数
     #
     # @else
     #
@@ -58,9 +58,9 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
     # constructor.
     # This is bound to type-T variable given as a parameter.
     #
-    # @param name A name of the EventInPort. This name is referred by
-    #             EventInPortBase::name().
-    # @param value type-T variable that is bound to this EventInPort.
+    # @param name A name of the CSPOutPort. This name is referred by
+    #             CSPOutPortBase::name().
+    # @param value type-T variable that is bound to this CSPOutPort.
     #
     # @endif
     #
@@ -79,6 +79,10 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
         if manager:
             manager.addOutPort(self)
         self._syncmode = True
+
+        marshaling_types = OpenRTM_aist.SerializerFactories.instance().getSerializerList(value)
+        marshaling_types = OpenRTM_aist.flatten(marshaling_types).lstrip()
+        self.addProperty("dataport.marshaling_types", marshaling_types)
 
     ##
     # @if jp
@@ -323,8 +327,7 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
             self._ctrl._cond.wait(self._channeltimeout)
 
         if not self._syncmode:
-            del guard
-            guard = None
+            guard.unlock()
 
         ret, self._writableConnector = self.dataWritable()
         return ret
@@ -359,7 +362,7 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
             self._ctrl._cond.wait(self._channeltimeout)
 
         if not self._syncmode:
-            del guard
+            guard.unlock()
 
         ret, self._writableConnector = self.dataWritableRetry()
         return ret
@@ -446,11 +449,11 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
             if ret == OpenRTM_aist.DataPortStatus.PORT_OK:
                 self.setData(cdr_data)
                 self._ctrl._waiting = False
-                self._ctrl._cond.notify()
+                self._ctrl._cond.notifyAll()
                 return True
 
         if self._writableConnector:
-            del guard_con
+            guard_con.unlock()
             self._writableConnector.write(value)
 
     ##
@@ -502,8 +505,7 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
         self._ctrl._searched_connectors = []
 
         if not self._syncmode:
-            del guard
-            guard = None
+            guard.unlock()
 
         if not value:
             value = self._value
@@ -527,7 +529,7 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
                     return False
 
         if not self._syncmode:
-            guard_con = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+            guard.lock()
 
             ret, con = self.dataWritableRetry()
             if ret:
@@ -543,7 +545,7 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
             self.setData(cdr_data)
             if self._ctrl._waiting:
                 self._ctrl._waiting = False
-                self._ctrl._cond.notify()
+                self._ctrl._cond.notifyAll()
                 return True
             self._ctrl._readable = True
             self._ctrl._cond.wait(self._channeltimeout)
@@ -657,7 +659,8 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
                     guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
                     self._ctrl._reading = True
                     return True
-            del guard_manager
+
+            guard_manager.unlock()
             guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
             if self._ctrl._reading:
                 self._ctrl._cond.wait(self._channeltimeout)
@@ -797,7 +800,7 @@ class CSPOutPort(OpenRTM_aist.OutPortBase):
             data = self._data[0]
             self._data[0] = None
             self._ctrl._readable = False
-            self._ctrl._cond.notify()
+            self._ctrl._cond.notifyAll()
             if data is None:
                 return OpenRTM_aist.BufferStatus.BUFFER_ERROR, data
             else:

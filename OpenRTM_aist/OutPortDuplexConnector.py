@@ -75,7 +75,6 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
                 "Exeption: in OutPortPullConnector.__init__().")
             raise
 
-        self._buffer = buffer
         self._info = info
         self._provider.init(info.properties)
         self._provider.setConnector(self)
@@ -145,6 +144,7 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
             else:
                 return ret
         else:
+            self._rtcout.RTC_ERROR("self._consumer is None")
             return self.PORT_ERROR
 
     ##
@@ -169,8 +169,10 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     # @endif
     #
     def isWritable(self, retry=False):
+        self._rtcout.RTC_TRACE("isWritable()")
         if self._consumer:
             return self._consumer.isWritable(retry)
+        self._rtcout.RTC_ERROR("self._consumer is None")
         return False
 
     ##
@@ -197,9 +199,11 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     # @endif
     #
     def read(self, data=None):
+        self._rtcout.RTC_TRACE("read()")
         if self._readCallback:
             ret, data = self._readCallback()
             return ret, data
+        self._rtcout.RTC_ERROR("self._readCallback is None")
         return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET, data
 
     ##
@@ -224,8 +228,10 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     # @endif
     #
     def isReadable(self, retry=False):
+        self._rtcout.RTC_TRACE("isReadable(%d)", (retry))
         if self._isReadableCallback:
             return self._isReadableCallback(self, retry)
+        self._rtcout.RTC_ERROR("self._isReadableCallback is None")
         return False
 
     ##
@@ -246,6 +252,7 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     #
 
     def setReadListener(self, listener):
+        self._rtcout.RTC_TRACE("setReadListener()")
         self._readCallback = listener
 
     ##
@@ -265,6 +272,7 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     # @endif
     #
     def setIsReadableListener(self, listener):
+        self._rtcout.RTC_TRACE("setIsReadableListener()")
         self._isReadableCallback = listener
 
     ##
@@ -297,8 +305,6 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
 
         if self._consumer:
             self._rtcout.RTC_DEBUG("delete consumer")
-            cfactory = OpenRTM_aist.InPortConsumerFactory.instance()
-
         self._consumer = None
 
         return self.PORT_OK
@@ -319,7 +325,7 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     # virtual CdrBufferBase* getBuffer();
 
     def getBuffer(self):
-        return self._buffer
+        return None
 
     ##
     # @if jp
@@ -361,19 +367,6 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
 
     ##
     # @if jp
-    # @brief Bufferの生成
-    # @else
-    # @brief create buffer
-    # @endif
-    #
-    # CdrBufferBase* createBuffer(ConnectorInfo& info);
-
-    def createBuffer(self, info):
-        buf_type = info.properties.getProperty("buffer_type", "ring_buffer")
-        return OpenRTM_aist.CdrBufferFactory.instance().createObject(buf_type)
-
-    ##
-    # @if jp
     # @brief 接続確立時にコールバックを呼ぶ
     # @else
     # @brief Invoke callback when connection is established
@@ -382,7 +375,8 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
 
     def onConnect(self):
         if self._listeners and self._profile:
-            self._listeners.notify(OpenRTM_aist.ConnectorListenerType.ON_CONNECT, self._profile)
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_CONNECT, self._profile)
         return
 
     ##
@@ -395,7 +389,8 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
 
     def onDisconnect(self):
         if self._listeners and self._profile:
-            self._listeners.notify(OpenRTM_aist.ConnectorListenerType.ON_DISCONNECT, self._profile)
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_DISCONNECT, self._profile)
         return
 
     ##
@@ -405,8 +400,8 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
     # @brief set Consumer
     # @endif
     def setConsumer(self, consumer):
+        self._rtcout.RTC_TRACE("setConsumer()")
         self._consumer = consumer
-        self._consumer.setListener(self._info, self._listeners)
 
     ##
     # @if jp
@@ -458,76 +453,7 @@ class OutPortDuplexConnector(OpenRTM_aist.OutPortConnector):
         if self._consumer:
             self._consumer.unsubscribeInterface(prop)
 
-
     def setDataType(self, data):
         OpenRTM_aist.OutPortConnector.setDataType(self, data)
-        self._serializer = OpenRTM_aist.SerializerFactories.instance().createSerializer(self._marshaling_type, data)
-
-
-##
-# @if jp
-# @class ReadListenerBase
-# @brief ReadListenerBase クラス
-#
-# 読み込み時リスナのベースクラス
-#
-# @since 2.0.0
-#
-# @else
-# @class ReadListenerBase
-# @brief ReadListenerBase class
-#
-#
-# @since 2.0.0
-#
-# @endif
-#
-class ReadListenerBase(object):
-    ##
-    # @if jp
-    # @brief 仮想コールバック関数
-    # @param self
-    # @return 読み込んだデータ
-    # @else
-    # @brief
-    # @param self
-    # @return 読み込んだデータ
-    # @endif
-    def __call__(self):
-        return (OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET, None)
-
-##
-# @if jp
-# @class IsReadableListenerBase
-# @brief IsReadableListenerBase クラス
-#
-# 読み込み確認時リスナのベースクラス
-#
-# @since 2.0.0
-#
-# @else
-# @class IsReadableListenerBase
-# @brief IsReadableListenerBase class
-#
-#
-# @since 2.0.0
-#
-# @endif
-#
-
-
-class IsReadableListenerBase(object):
-    ##
-    # @if jp
-    # @brief 仮想コールバック関数
-    # @param self
-    # @param con OutPortConnector
-    # @return True：読み込み可、False：読み込み不可
-    # @else
-    # @brief
-    # @param self
-    # @param con
-    # @return
-    # @endif
-    def __call__(self, con):
-        return False
+        self._serializer = OpenRTM_aist.SerializerFactories.instance(
+        ).createSerializer(self._marshaling_type, data)

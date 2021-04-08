@@ -257,8 +257,9 @@ class RingBuffer(OpenRTM_aist.BufferBase):
 
     def advanceWptr(self, n=1, unlock_enable=True):
         empty = False
+        guard_empty = OpenRTM_aist.ScopedLock(self._empty_cond, True)
         if unlock_enable and n > 0:
-            self._empty_cond.acquire()
+            guard_empty.lock()
             empty = self.empty()
         # n > 0 :
         #     n satisfies n <= writable elements
@@ -267,22 +268,19 @@ class RingBuffer(OpenRTM_aist.BufferBase):
         #     n satisfies n'<= readable elements
         #                 n'<= m_fillcount
         #                 n >= - m_fillcount
-        guard = OpenRTM_aist.ScopedLock(self._pos_mutex)
+        guard_pos = OpenRTM_aist.ScopedLock(self._pos_mutex)
         if (n > 0 and n > (self._length - self._fillcount)) or \
                 (n < 0 and n < (-self._fillcount)):
-            if unlock_enable and n > 0:
-                self._empty_cond.release()
             return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
 
         self._wpos = (self._wpos + n + self._length) % self._length
         self._fillcount += n
         self._wcount += n
-        del guard
+        guard_pos.unlock()
 
         if unlock_enable and n > 0:
             if empty:
                 self._empty_cond.notify()
-            self._empty_cond.release()
 
         return OpenRTM_aist.BufferStatus.BUFFER_OK
 
@@ -365,7 +363,7 @@ class RingBuffer(OpenRTM_aist.BufferBase):
     #                  long int sec = -1, long int nsec = 0)
     def write(self, value, sec=-1, nsec=0):
         try:
-            self._full_cond.acquire()
+            guard = OpenRTM_aist.ScopedLock(self._full_cond)
             if self.full():
                 timedwrite = self._timedwrite  # default is False
                 overwrite = self._overwrite  # default is True
@@ -378,7 +376,6 @@ class RingBuffer(OpenRTM_aist.BufferBase):
                     self.advanceRptr(unlock_enable=False)
 
                 elif not overwrite and not timedwrite:  # "do_nothing" mode
-                    self._full_cond.release()
                     return OpenRTM_aist.BufferStatus.BUFFER_FULL
 
                 elif not overwrite and timedwrite:     # "block" mode
@@ -395,17 +392,14 @@ class RingBuffer(OpenRTM_aist.BufferBase):
                     ret = self._full_cond.wait(wait_time)
                     if sys.version_info[0] == 3:
                         if not ret:
-                            self._full_cond.release()
                             return OpenRTM_aist.BufferStatus.TIMEOUT
                     else:
                         if self.full():
-                            self._full_cond.release()
                             return OpenRTM_aist.BufferStatus.TIMEOUT
 
                 else:  # unknown condition
-                    self._full_cond.release()
                     return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
-            self._full_cond.release()
+            guard.unlock()
 
             self.put(value)
 
@@ -520,8 +514,9 @@ class RingBuffer(OpenRTM_aist.BufferBase):
 
     def advanceRptr(self, n=1, unlock_enable=True):
         full_ = False
+        guard_full = OpenRTM_aist.ScopedLock(self._full_cond, True)
         if unlock_enable and n > 0:
-            self._full_cond.acquire()
+            guard_full.lock()
             full_ = self.full()
         # n > 0 :
         #     n satisfies n <= readable elements
@@ -529,21 +524,18 @@ class RingBuffer(OpenRTM_aist.BufferBase):
         # n < 0 : -n = n'
         #     n satisfies n'<= m_length - m_fillcount
         #                 n >= m_fillcount - m_length
-        guard = OpenRTM_aist.ScopedLock(self._pos_mutex)
+        guard_pos = OpenRTM_aist.ScopedLock(self._pos_mutex)
         if (n > 0 and n > self._fillcount) or \
                 (n < 0 and n < (self._fillcount - self._length)):
-            if unlock_enable and n > 0:
-                self._full_cond.release()
             return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET
 
         self._rpos = (self._rpos + n + self._length) % self._length
         self._fillcount -= n
-        del guard
+        guard_pos.unlock()
 
         if unlock_enable and n > 0:
             if full_:
                 self._full_cond.notify()
-            self._full_cond.release()
 
         return OpenRTM_aist.BufferStatus.BUFFER_OK
 
@@ -623,7 +615,7 @@ class RingBuffer(OpenRTM_aist.BufferBase):
     #                 long int sec = -1, long int nsec = 0)
 
     def read(self, sec=-1, nsec=0):
-        self._empty_cond.acquire()
+        guard = OpenRTM_aist.ScopedLock(self._empty_cond)
 
         if self.empty():
             timedread = self._timedread
@@ -637,12 +629,10 @@ class RingBuffer(OpenRTM_aist.BufferBase):
 
             if readback and not timedread:      # "readback" mode
                 if not self._wcount > 0:
-                    self._empty_cond.release()
                     return OpenRTM_aist.BufferStatus.BUFFER_EMPTY, None
                 self.advanceRptr(-1)
 
             elif not readback and not timedread:  # "do_nothing" mode
-                self._empty_cond.release()
                 return OpenRTM_aist.BufferStatus.BUFFER_EMPTY, None
 
             elif not readback and timedread:     # "block" mode
@@ -657,18 +647,15 @@ class RingBuffer(OpenRTM_aist.BufferBase):
                 ret = self._empty_cond.wait(wait_time)
                 if sys.version_info[0] == 3:
                     if not ret:
-                        self._empty_cond.release()
                         return OpenRTM_aist.BufferStatus.TIMEOUT, None
                 else:
                     if self.empty():
-                        self._empty_cond.release()
                         return OpenRTM_aist.BufferStatus.TIMEOUT, None
 
             else:                              # unknown condition
-                self._empty_cond.release()
                 return OpenRTM_aist.BufferStatus.PRECONDITION_NOT_MET, None
 
-        self._empty_cond.release()
+        guard.unlock()
 
         _, value = self.get()
 

@@ -337,11 +337,15 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
     #
     def notify(self):
         for con in self._connectors:
-            guard_ctrl = None
+            guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
             if not self._syncmode:
-                guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
-            if self._ctrl._writing:
-                self._ctrl._cond.wait(self._channeltimeout)
+                if self._ctrl._writing:
+                    self._ctrl._cond.wait(self._channeltimeout)
+            else:
+                if self._ctrl._writing:
+                    self._ctrl._cond.wait(self._channeltimeout)
+                guard_ctrl.unlock()
+
             if not self._eventbuffer.full():
                 if con.isReadable(False):
                     ret, _ = con.readBuff()
@@ -375,6 +379,7 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
     #
     # @endif
     #
+
     def notify_connect(self, connector_profile):
         ret, prof = super(CSPEventPort, self).notify_connect(connector_profile)
         guard_con = OpenRTM_aist.ScopedLock(self._connector_mutex)
@@ -409,28 +414,27 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
     # @endif
     #
     def getDataBufferMode(self, con, retry):
-        guard_ctrl = None
+        guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond, True)
         if not self._syncmode:
-            guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+            guard_ctrl.lock()
 
         if not self._eventbuffer.empty():
             _, value = self._eventbuffer.read()
-            if guard_ctrl is not None:
-                del guard_ctrl
+            guard_ctrl.unlock()
             self.notify()
             return CSPEventPort.SUCCESSFUL_GET_DATA, value
         elif self._ctrl._writing:
             self._ctrl._cond.wait(self._channeltimeout)
             if not self._eventbuffer.empty():
                 _, value = self._eventbuffer.read()
-                if guard_ctrl is not None:
-                    del guard_ctrl
+                guard_ctrl.unlock()
                 self.notify()
                 return CSPEventPort.SUCCESSFUL_GET_DATA, value
             else:
                 self._rtcout.RTC_ERROR("read timeout")
                 return CSPEventPort.FAILED_TIMEOUT, None
         else:
+            guard_ctrl.unlock()
             readable = con.isReadable(retry)
             if readable:
                 ret, _ = con.readBuff()
@@ -468,14 +472,14 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
     #
 
     def dataPullBufferMode(self):
-        guard_ctrl = None
+        guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond, True)
         if not self._syncmode:
-            guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+            guard_ctrl.lock()
 
         self._ctrl._connectors = []
         self._ctrl._searched_connectors = []
 
-        del guard_ctrl
+        guard_ctrl.unlock()
 
         guard_con = OpenRTM_aist.ScopedLock(self._connector_mutex)
         if not self._connectors:
@@ -495,17 +499,17 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
 
         else:
             if not self._syncmode:
-                guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+                guard_ctrl.lock()
             if not self._eventbuffer.empty():
                 _, value = self._eventbuffer.read()
-                del guard_ctrl
+                guard_ctrl.unlock()
                 self.notify()
                 return True, value
             else:
                 self._rtcout.RTC_ERROR(
                     "read error:%s",
                     (OpenRTM_aist.BufferStatus.toString(ret)))
-                del guard_ctrl
+                guard_ctrl.unlock()
                 self.notify()
                 return False, None
         return False, None
@@ -549,18 +553,19 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
             self._ctrl._searched_connectors = []
 
         else:
+            guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond, True)
             if not self._syncmode:
-                guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+                guard_ctrl.lock()
             if not self._eventbuffer.empty():
                 _, value = self._eventbuffer.read()
-                del guard_ctrl
+                guard_ctrl.unlock()
                 self.notify()
                 return True, value
             else:
                 self._rtcout.RTC_ERROR(
                     "read error:%s",
                     (OpenRTM_aist.BufferStatus.toString(ret)))
-                del guard_ctrl
+                guard_ctrl.unlock()
                 self.notify()
                 return False, None
         return False, None
@@ -592,11 +597,12 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
     def getDataZeroMode(self, con, retry):
         ret = con.isReadable(retry)
         if ret:
-            guard_ctrl = None
-            if not self._syncmode:
-                guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+            #guard_ctrl = OpenRTM_aist.ScopedLock(self._ctrl._cond, True)
+            # if not self._syncmode:
+            #    guard_ctrl.lock()
             ret, _ = con.readBuff()
             _, value = self._eventbuffer.read()
+
             if ret == OpenRTM_aist.DataPortStatus.PORT_OK:
                 return CSPEventPort.SUCCESSFUL_GET_DATA, value
             else:
@@ -710,16 +716,14 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
         self._ctrl._searched_connectors = []
 
         if not self._syncmode:
-            del guard
-            guard = None
+            guard.unlock()
 
         if not self._bufferzeromode:
             ret, value = self.dataPullBufferMode()
         else:
             ret, value = self.dataPullZeroMode()
 
-        if not self._syncmode:
-            guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+        guard.lock()
         if ret:
             self._value = value
         return ret
@@ -746,9 +750,9 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
     #
     def reselect(self):
         self._rtcout.RTC_TRACE("reselect()")
-        guard = None
+        guard = OpenRTM_aist.ScopedLock(self._ctrl._cond, True)
         if self._syncmode:
-            guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+            guard.lock()
 
         if not self._bufferzeromode:
             ret, value = self.dataPullBufferModeRetry()
@@ -756,7 +760,7 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
             ret, value = self.dataPullZeroModeRetry()
 
         if not self._syncmode:
-            guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
+            guard.lock()
         if ret:
             self._value = value
         return ret
@@ -905,15 +909,14 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
         self._ctrl._connectors = []
         self._ctrl._searched_connectors = []
         if not self._syncmode:
-            del guard
-            guard = None
+            guard.unlock()
 
         ret, data = self.dataPullBufferMode()
         if ret:
             return data
         else:
+            guard.lock()
             if not self._syncmode:
-                guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
                 ret, data = self.dataPullBufferModeRetry()
                 if ret:
                     return data
@@ -952,15 +955,14 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
         self._ctrl._connectors = []
         self._ctrl._searched_connectors = []
         if not self._syncmode:
-            del guard
-            guard = None
+            guard.unlock()
 
         ret, data = self.dataPullZeroMode()
         if ret:
             return data
         else:
+            guard.lock()
             if not self._syncmode:
-                guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
                 ret, data = self.dataPullZeroModeRetry()
                 if ret:
                     return data
@@ -1072,7 +1074,7 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
             if self._manager:
                 if self._manager.notify(inport=self._port):
                     return True
-            del guard_manager
+            guard_manager.unlock()
             guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
             if self._ctrl._writing:
                 self._ctrl._cond.wait(self._channeltimeout)
@@ -1201,7 +1203,7 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
         def __call__(self, data):
             guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
             self._ctrl._writing = False
-            self._ctrl._cond.notify()
+            self._ctrl._cond.notifyAll()
             return OpenRTM_aist.BufferStatus.BUFFER_OK
 
     ##
@@ -1297,7 +1299,7 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
             if self._manager:
                 if self._manager.notify(inport=self._port):
                     return True
-            del guard_manager
+            guard_manager.unlock()
             guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
             if self._ctrl._waiting and self._ctrl._writing:
                 self._ctrl._cond.wait(self._channeltimeout)
@@ -1426,7 +1428,7 @@ class CSPEventPort(OpenRTM_aist.InPortBase):
         def __call__(self, data):
             guard = OpenRTM_aist.ScopedLock(self._ctrl._cond)
             self._ctrl._writing = False
-            self._ctrl._cond.notify()
+            self._ctrl._cond.notifyAll()
             return OpenRTM_aist.BufferStatus.BUFFER_OK
 
     class WorkerThreadCtrl:

@@ -66,9 +66,9 @@ class InPortCSPProvider(OpenRTM_aist.InPortProvider, CSP__POA.InPortCsp):
         self._listeners = None
 
         orb = OpenRTM_aist.Manager.instance().getORB()
-        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.corba_cdr.inport_ior",
+        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.csp_channel.inport_ior",
                                                           orb.object_to_string(self._objref)))
-        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.corba_cdr.inport_ref",
+        self._properties.append(OpenRTM_aist.NVUtil.newNV("dataport.csp_channel.inport_ref",
                                                           self._objref))
 
         return
@@ -189,6 +189,7 @@ class InPortCSPProvider(OpenRTM_aist.InPortProvider, CSP__POA.InPortCsp):
         self._rtcout.RTC_PARANOID("is_writable()")
         if self._connector:
             return self._connector.isWritable(retry)
+        self._rtcout.RTC_ERROR("self._connector is None")
         return False
 
     def onBufferWrite(self, data):

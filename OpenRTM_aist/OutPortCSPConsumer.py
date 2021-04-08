@@ -29,7 +29,7 @@ import CSP
 #
 # @endif
 #
-class OutPortCSPConsumer(OpenRTM_aist.OutPortCorbaCdrConsumer):
+class OutPortCSPConsumer(OpenRTM_aist.OutPortCorbaConsumerBase):
 
     """
     """
@@ -53,8 +53,8 @@ class OutPortCSPConsumer(OpenRTM_aist.OutPortCorbaCdrConsumer):
     # @endif
     #
     def __init__(self):
-        OpenRTM_aist.OutPortCorbaCdrConsumer.__init__(self)
-        OpenRTM_aist.CorbaConsumer.__init__(self, CSP.OutPortCsp)
+        OpenRTM_aist.OutPortCorbaConsumerBase.__init__(
+            self, CSP.OutPortCsp, "csp_channel")
         self._rtcout = OpenRTM_aist.Manager.instance().getLogbuf("OutPortCSPConsumer")
         self._properties = None
         return
@@ -76,9 +76,9 @@ class OutPortCSPConsumer(OpenRTM_aist.OutPortCorbaCdrConsumer):
     #
     # @endif
     #
-    def __del__(self, CorbaConsumer=OpenRTM_aist.CorbaConsumer):
+    def __del__(self):
         self._rtcout.RTC_PARANOID("~OutPortCSPConsumer()")
-        CorbaConsumer.__del__(self)
+        OpenRTM_aist.CorbaConsumer.__del__(self)
 
     # void init(coil::Properties& prop)
 
@@ -195,6 +195,74 @@ class OutPortCSPConsumer(OpenRTM_aist.OutPortCorbaCdrConsumer):
             self._rtcout.RTC_ERROR(OpenRTM_aist.Logger.print_exception())
             return False
 
+    ##
+    # @brief Connector data listener functions
+    #
+    # inline void onBufferWrite(const cdrMemoryStream& data)
+
+    def onBufferWrite(self, data):
+        if self._listeners is not None and self._profile is not None:
+            _, data = self._listeners.notifyData(
+                OpenRTM_aist.ConnectorDataListenerType.ON_BUFFER_WRITE, self._profile, data)
+
+        return data
+
+    # inline void onBufferFull(const cdrMemoryStream& data)
+
+    def onBufferFull(self, data):
+        if self._listeners is not None and self._profile is not None:
+            _, data = self._listeners.notifyData(
+                OpenRTM_aist.ConnectorDataListenerType.ON_BUFFER_FULL, self._profile, data)
+
+        return data
+
+    # inline void onReceived(const cdrMemoryStream& data)
+
+    def onReceived(self, data):
+        if self._listeners is not None and self._profile is not None:
+            _, data = self._listeners.notifyData(
+                OpenRTM_aist.ConnectorDataListenerType.ON_RECEIVED, self._profile, data)
+
+        return data
+
+    # inline void onReceiverFull(const cdrMemoryStream& data)
+
+    def onReceiverFull(self, data):
+        if self._listeners is not None and self._profile is not None:
+            _, data = self._listeners.notifyData(
+                OpenRTM_aist.ConnectorDataListenerType.ON_RECEIVER_FULL, self._profile, data)
+
+        return data
+
+    ##
+    # @brief Connector listener functions
+    #
+    # inline void onSenderEmpty()
+
+    def onSenderEmpty(self):
+        if self._listeners is not None and self._profile is not None:
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_SENDER_EMPTY, self._profile)
+
+        return
+
+    # inline void onSenderTimeout()
+
+    def onSenderTimeout(self):
+        if self._listeners is not None and self._profile is not None:
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_SENDER_TIMEOUT, self._profile)
+
+        return
+
+    # inline void onSenderError()
+
+    def onSenderError(self):
+        if self._listeners is not None and self._profile is not None:
+            self._listeners.notify(
+                OpenRTM_aist.ConnectorListenerType.ON_SENDER_ERROR, self._profile)
+
+        return
 
 ##
 # @if jp
@@ -207,6 +275,8 @@ class OutPortCSPConsumer(OpenRTM_aist.OutPortCorbaCdrConsumer):
 #
 # @endif
 #
+
+
 def OutPortCSPConsumerInit():
     factory = OpenRTM_aist.OutPortConsumerFactory.instance()
     factory.addFactory("csp_channel",

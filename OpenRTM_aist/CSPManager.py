@@ -305,7 +305,7 @@ class CSPManager(object):
             self._ctrl._timeout = True
             self._ctrl._cond.wait(timeout)
             self._ctrl._waiting = False
-            del guard
+            guard.unlock()
             if self._ctrl._timeout:
                 return False, None, None
             else:
@@ -344,7 +344,7 @@ class CSPManager(object):
                 self._writableOutPort = outport
             elif inport:
                 self._readableInPort = inport
-            self._ctrl._cond.notify()
+            self._ctrl._cond.notifyAll()
             return True
         else:
             return False
