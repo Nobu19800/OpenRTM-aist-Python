@@ -299,6 +299,23 @@ document_match_regex = r".*\.(css|gif|png|html||hhc|hhk|hhp|js)$"
 document_path = os.path.normpath(current_dir + "/" + document_dir)
 
 
+inconf_files = ['OpenRTM_aist/ext/ssl/rtc.ssl.conf.in',
+                'OpenRTM_aist/ext/http/rtc.http.conf.in',
+                'OpenRTM_aist/ext/http/rtc.https.conf.in',
+                'OpenRTM_aist/ext/http/rtc.ws.conf.in',
+                'OpenRTM_aist/ext/http/rtc.wss.conf.in',
+                'OpenRTM_aist/ext/transport/ROSTransport/rtc.ros.conf.in',
+                'OpenRTM_aist/ext/transport/ROS2Transport/rtc.ros2.conf.in',
+                'OpenRTM_aist/ext/transport/OpenSplice/rtc.opensplice.conf.in']
+exconf_files = ['OpenRTM_aist/ext/ssl/root.crt',
+                'OpenRTM_aist/ext/ssl/server.pem']
+inconf_params = {'INSTALL_SSLTRANSPORT_DIR': 'OpenRTM_aist/ext/ssl',
+                 'INSTALL_HTTPTRANSPORT_DIR': 'OpenRTM_aist/ext/http',
+                 'INSTALL_ROSTRANSPORT_DIR': 'OpenRTM_aist/ext/transport/ROSTransport',
+                 'INSTALL_OPENSPLICETRANSPORT_DIR': 'OpenRTM_aist/ext/transport/OpenSplice'
+                 }
+
+
 ##########################################################################
 # DO NOT CHANGE FROM HERE !!!
 ##########################################################################
@@ -981,6 +998,27 @@ class install_all(install):
     description = "Generate python CORBA stubs from IDL files and documentation"
 
     def run(self):
+        for filepath in inconf_files:
+            comp = ""
+            with open(filepath, 'rt', encoding='utf-8', newline='') as f:
+                comp = f.read()
+                for name, value in inconf_params.items():
+                    confpath = os.path.join(
+                        self.install_libbase, value).replace("\\", "/")
+                    comp = comp.replace("@"+name+"@", confpath)
+
+            filename = filepath[:-3]
+
+            with open(filename, 'w', encoding='utf-8', newline='') as f:
+                f.write(comp)
+
+            writepath = os.path.join(self.install_libbase, filename)
+            self.copy_file(filename, writepath)
+
+        for filepath in exconf_files:
+            writepath = os.path.join(self.install_libbase, filepath)
+            self.copy_file(filepath, writepath)
+
         for cmd_name in self.get_sub_commands():
             self.run_command(cmd_name)
         return

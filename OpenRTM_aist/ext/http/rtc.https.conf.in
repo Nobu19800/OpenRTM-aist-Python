@@ -1,0 +1,16 @@
+logger.enable: YES
+logger.log_level: DEBUG
+#logger.file_name: stdout
+
+naming.formats: test.host_cxt/%n.rtc
+
+manager.modules.load_path: @INSTALL_HTTPTRANSPORT_DIR@
+manager.preload.modules: HTTPTransport.py
+
+corba.http.certificate_authority_file:@INSTALL_SSLTRANSPORT_DIR@/root.crt
+corba.http.key_file:@INSTALL_SSLTRANSPORT_DIR@/server.pem
+corba.http.key_file_password:password
+
+corba.args:-ORBserverTransportRule "* http" -ORBclientTransportRule "* http" -ORBendPoint giop:http:https:///call
+corba.nameservers: https://localhost:2809/call
+corba.master_manager: giop:http:https://localhost:2810/call

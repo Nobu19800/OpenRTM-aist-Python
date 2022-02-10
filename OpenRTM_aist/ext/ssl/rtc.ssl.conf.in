@@ -1,0 +1,15 @@
+logger.enable: YES
+logger.log_level: DEBUG
+#logger.file_name: stdout
+
+naming.formats: test.host_cxt/%n.rtc
+
+manager.modules.load_path: @INSTALL_SSLTRANSPORT_DIR@
+manager.preload.modules: SSLTransport.py
+
+corba.ssl.certificate_authority_file:@INSTALL_SSLTRANSPORT_DIR@/root.crt
+corba.ssl.key_file:@INSTALL_SSLTRANSPORT_DIR@/server.pem
+corba.ssl.key_file_password:password
+corba.args:-ORBserverTransportRule "* ssl" -ORBclientTransportRule "* ssl" -ORBendPoint giop:ssl::
+corba.nameservers: corbaloc:ssliop:localhost:2809
+corba.master_manager: giop:ssl:localhost:2810

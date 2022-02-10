@@ -1,0 +1,8 @@
+logger.enable: YES
+logger.log_level: DEBUG
+#logger.file_name: stdout
+
+manager.modules.load_path: @INSTALL_OPENSPLICETRANSPORT_DIR@
+manager.modules.preload: OpenSpliceTransport.py
+manager.components.preconnect: ConsoleOut0.in?interface_type=opensplice&marshaling_type=opensplice, ConsoleIn0.out?interface_type=opensplice&marshaling_type=opensplice
+manager.components.preactivation: ConsoleOut0, ConsoleIn0
