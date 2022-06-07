@@ -788,6 +788,9 @@ class ROS2CameraImageData(OpenRTM_aist.ByteDataStreamBase):
     # @endif
 
     def serialize(self, data):
+        import cv2
+        import numpy
+
         msg = Image()
         msg.header.stamp.sec = data.tm.sec
         msg.header.stamp.nanosec = data.tm.nsec
@@ -798,7 +801,14 @@ class ROS2CameraImageData(OpenRTM_aist.ByteDataStreamBase):
         else:
             msg.encoding = data.format
         msg.step = 1920
-        msg.data = data.pixels
+
+        img = numpy.frombuffer(data.pixels, numpy.uint8).reshape(
+            (data.height, data.width, 3))
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+        msg.data = img.tobytes()
+
+        #msg.data = data.pixels
 
         return OpenRTM_aist.ByteDataStreamBase.SERIALIZE_OK, msg
 
@@ -823,13 +833,21 @@ class ROS2CameraImageData(OpenRTM_aist.ByteDataStreamBase):
     #
     # @endif
     def deserialize(self, bdata, data_type):
+        import cv2
+        import numpy
+
         try:
             data_type.tm.sec = bdata.header.stamp.sec
             data_type.tm.nsec = bdata.header.stamp.nanosec
             data_type.height = bdata.height
             data_type.width = bdata.width
             data_type.format = bdata.encoding
-            data_type.pixels = bdata.data.tobytes()
+            img = numpy.frombuffer(bdata.data.tobytes(), numpy.uint8).reshape(
+                (bdata.height, bdata.width, 3))
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+            data_type.pixels = img.tobytes()
+
+            #data_type.pixels = bdata.data.tobytes()
             return OpenRTM_aist.ByteDataStreamBase.SERIALIZE_OK, data_type
         except BaseException:
             return OpenRTM_aist.ByteDataStreamBase.SERIALIZE_NOT_SUPPORT_ENDIAN, data_type
