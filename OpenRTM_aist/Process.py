@@ -20,6 +20,7 @@ import sys
 import traceback
 import subprocess
 import shlex
+import threading
 
 ##
 # @if jp
@@ -63,6 +64,32 @@ def launch_shell(command):
 
         return -1
     return 0
+
+class Process:
+    def __init__(self, command, callback=None, options=None):
+        self._ret = subprocess.CompletedProcess([], 0)
+        self._command = command
+        self._thread = threading.Thread(target=self.loop)
+        self._thread.start()
+        self._callback = callback
+        self._options = options
+        
+    def loop(self):
+        args = shlex.split(self._command, " ")
+        try:
+            self._ret = subprocess.run(args)
+            self._callback.callback(self._ret.returncode, self._options)
+        except:
+            self._ret.returncode = -1
+
+    def join(self):
+        self._thread.join()
+
+    def returnCode(self):
+        return self._ret.returncode
+
+
+
 
 
 ##

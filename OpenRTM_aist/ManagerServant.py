@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 ##
@@ -210,6 +210,7 @@ class ManagerServant(RTM__POA.Manager):
         self._masterMutex = threading.RLock()
         self._slaveMutex = threading.RLock()
         self._objref = RTM.Manager._nil
+        self._processes = []
 
         config = copy.deepcopy(self._mgr.getConfig())
 
@@ -1346,6 +1347,19 @@ class ManagerServant(RTM__POA.Manager):
         return param_value, module_name
             
 
+    def runProcess(self, cmd, arg):
+        pcb_type, arg = self.getParameterByModulename("callback", arg)
+        
+        self._mgr.load(pcb_type, None)
+        avail_pcb_ = OpenRTM_aist.ProcessCallbackFactory.instance().getIdentifiers()
+
+        if pcb_type in avail_pcb_:
+            pcb = OpenRTM_aist.ProcessCallbackFactory.instance().createObject(pcb_type)
+        else:
+            pcb = None
+        p = OpenRTM_aist.Process(cmd, pcb)
+        self._processes.append(p)
+        return p.returnCode()
 
     ##
     # @if jp
@@ -1438,7 +1452,11 @@ class ManagerServant(RTM__POA.Manager):
 
                 del guard_slave
 
-            ret = OpenRTM_aist.launch_shell(cmd)
+            launch_type, arg = self.getParameterByModulename("launch_type", arg)
+            if launch_type == "observer":
+                ret = self.runProcess(cmd, arg)
+            else:
+                ret = OpenRTM_aist.launch_shell(cmd)
 
             if ret == -1:
                 self._rtcout.RTC_DEBUG("%s: failed", cmd)
