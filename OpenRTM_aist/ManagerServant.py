@@ -1382,6 +1382,7 @@ class ManagerServant(RTM__POA.Manager):
         arg = module_name
 
         mgrstr, arg = self.getParameterByModulename("manager_name", arg)
+        param = OpenRTM_aist.urlparam2map(arg)
 
         if not mgrstr:
             return RTC.RTObject._nil, arg, mgrstr
@@ -1418,6 +1419,11 @@ class ManagerServant(RTM__POA.Manager):
                 load_path = load_path.replace("\\", "\\\\")
             else:
                 cmd = rtcd_cmd
+            if "config_file" in param.keys():
+                cmd += " -f \"" + param["config_file"] + "\""
+            elif config.findNode("config_file"):
+                cmd += " -f \"" + config.getProperty("config_file") + "\""
+            
             cmd += " -o " + "manager.is_master:NO"
             cmd += " -o " + "manager.corba_servant:YES"
             cmd += " -o " + "corba.master_manager:" + \
@@ -1539,6 +1545,7 @@ class ManagerServant(RTM__POA.Manager):
 
         arg = module_name
         mgrstr, arg = self.getParameterByModulename("manager_address", arg)
+        param = OpenRTM_aist.urlparam2map(arg)
 
         if not mgrstr:
             return RTC.RTObject._nil, arg, mgrstr
@@ -1576,6 +1583,10 @@ class ManagerServant(RTM__POA.Manager):
                 load_path = load_path.replace("\\", "\\\\")
             else:
                 cmd = rtcd_cmd
+            if "config_file" in param.keys():
+                cmd += " -f \"" + param["config_file"] + "\""
+            elif config.findNode("config_file"):
+                cmd += " -f \"" + config.getProperty("config_file") + "\""
             cmd += " -o corba.master_manager:"
             cmd += mgrstr  # port number
             cmd += " -o \"manager.modules.load_path:"

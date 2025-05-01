@@ -117,6 +117,7 @@ extract_source()
   mkdir ${BUILD_ROOT}
   cp -r ../../examples ${BUILD_ROOT}/
   cp -r ../../OpenRTM_aist* ${BUILD_ROOT}/
+  cp ../../OpenRTM-aist.pth ${BUILD_ROOT}/
   find ${BUILD_ROOT}/examples | grep -E "(/__pycache__$|\.pyc$|\.pyo$)" | xargs rm -rf
   find ${BUILD_ROOT}/examples -name "*.bat" | xargs rm -f
   rm ${BUILD_ROOT}/examples/rtc.conf.sample
@@ -138,11 +139,10 @@ extract_source()
   rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcd/README
   rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcd/*.conf
   rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcd/*.bat
-  rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcd/rtcd2_python3
+  rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcd/rtcd2_python
   rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcprof/*.bat
-  rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcprof/rtcprof2_python3
+  rm ${BUILD_ROOT}/OpenRTM_aist/utils/rtcprof/rtcprof2_python
   cp -r ../../local/bin ${BUILD_ROOT}/
-  chmod -x ${BUILD_ROOT}/bin/*.pth
 }
 
 create_files()
