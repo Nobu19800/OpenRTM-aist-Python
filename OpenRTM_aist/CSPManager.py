@@ -582,8 +582,7 @@ class CSPManager(object):
             if (outport is None) == (inport is None):
                 return CSP.NOT_READY
             port = outport if outport is not None else inport
-            if (port is None or (outport is not None and outport not in self._outports)
-                    or (inport is not None and inport not in self._inports)):
+            if (port is None or (outport is not None and outport not in self._outports) or (inport is not None and inport not in self._inports)):
                 return CSP.NOT_READY
             if not self._selection_active or self._selection_winner is not None:
                 return CSP.NOT_SELECTING
@@ -611,7 +610,6 @@ class CSPManager(object):
                 self._portList.append(port)
                 self._arbitration_stats['deferred'] += 1
             return CSP.SCANNING
-       
 
     ##
     # @if jp
@@ -619,6 +617,7 @@ class CSPManager(object):
     # @else
     # @brief Prepare a remote rescan using the fixed priorities exchanged at connection time.
     # @endif
+
     def _schedulePriorityRescan(self):
         """Retry only requests from lower-priority remote managers.
 
@@ -626,8 +625,7 @@ class CSPManager(object):
         a premature retry fails and remains pending until success or timeout.
         """
         with self._ctrl._cond:
-            if not (self._selection_active and self._ctrl._waiting
-                    and self._arbitration_parked and self._rescan_ports is None):
+            if not (self._selection_active and self._ctrl._waiting and self._arbitration_parked and self._rescan_ports is None):
                 return
             for port in self._portList:
                 requests = self._remote_pending.get(port, {})

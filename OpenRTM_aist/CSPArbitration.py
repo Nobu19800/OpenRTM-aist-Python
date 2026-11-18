@@ -142,8 +142,7 @@ class RescanArbiter:
                 return
             for priority, manager in sorted(list(self._managers.items())):
                 with manager._ctrl._cond:
-                    if not (manager._selection_active and manager._ctrl._waiting
-                            and manager._arbitration_parked and manager._portList):
+                    if not (manager._selection_active and manager._ctrl._waiting and manager._arbitration_parked and manager._portList):
                         continue
                     pending = list(manager._portList)
                 eligible = [port for port in pending if self._ready_peer(manager, port)]
@@ -151,8 +150,7 @@ class RescanArbiter:
                     continue
                 with manager._ctrl._cond:
                     # A notification may have won since the snapshot.
-                    if not (manager._selection_active and manager._ctrl._waiting
-                            and manager._arbitration_parked):
+                    if not (manager._selection_active and manager._ctrl._waiting and manager._arbitration_parked):
                         continue
                     manager._rescan_ports = eligible
                     token = next(self._grant_sequence)
@@ -184,8 +182,7 @@ class RescanArbiter:
         assigned asynchronously before this release reaches the arbiter.
         """
         with self._lock:
-            if (token is not None and self._owner is not None
-                    and self._owner() is manager and self._owner_token == token):
+            if (token is not None and self._owner is not None and self._owner() is manager and self._owner_token == token):
                 self._owner = None
                 self._owner_token = None
         self.schedule()

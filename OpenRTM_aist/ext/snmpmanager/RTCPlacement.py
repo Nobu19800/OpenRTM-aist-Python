@@ -66,6 +66,35 @@ import glob
 import os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from xml.parsers import expat
+
+
+def _read_profile_xml(path):
+    builder = ET.TreeBuilder()
+
+    def qualified(name):
+        return "{" + name if "}" in name else name
+
+    def start(name, attributes):
+        builder.start(qualified(name), {
+            qualified(key): value for key, value in attributes.items()
+        })
+
+    def reject_doctype(*args):
+        raise ET.ParseError("placement XML must not contain a DTD")
+
+    parser = expat.ParserCreate(namespace_separator="}")
+    parser.StartElementHandler = start
+    parser.EndElementHandler = lambda name: builder.end(qualified(name))
+    parser.CharacterDataHandler = builder.data
+    parser.StartDoctypeDeclHandler = reject_doctype
+    try:
+        with open(path, "rb") as stream:
+            parser.ParseFile(stream)
+    except expat.ExpatError as exc:
+        raise ET.ParseError(str(exc)) from exc
+    return builder.close()
+
 
 NS = "{urn:snmpmanager:placement:1}"
 SERVICE_WEIGHT = 1000.0      # サービスポート接続の重み (bytes/s 相当)
@@ -161,7 +190,7 @@ class ProfileDB:
         for r in roots:
             env_xml = os.path.join(r, "environments.xml")
             if os.path.exists(env_xml):
-                for e in ET.parse(env_xml).getroot():
+                for e in _read_profile_xml(env_xml):
                     try:
                         self.perf.setdefault(e.get(NS + "id"), float(e.get(NS + "perfScore")))
                     except (TypeError, ValueError):
@@ -170,7 +199,7 @@ class ProfileDB:
         paths = sorted(p for r in roots for p in glob.glob(os.path.join(r, "**", "placement.xml"), recursive=True))
         for path in paths:
             try:
-                root_el = ET.parse(path).getroot()
+                root_el = _read_profile_xml(path)
             except ET.ParseError:
                 continue
             key = (root_el.get(NS + "language"), root_el.get(NS + "rtc"))
@@ -241,8 +270,7 @@ class ProfileDB:
     # @return profile (None if there is no usable measurement)
     # @~
     def _from_element(self, path, el):
-        ms = [m for m in el.iter(NS + "Measurement") if m.get(NS + "status") == "ok"
-              and m.find(NS + "Resources") is not None]
+        ms = [m for m in el.iter(NS + "Measurement") if m.get(NS + "status") == "ok" and m.find(NS + "Resources") is not None]
         if not ms:
             return None
         m = next((x for x in ms if x.get(NS + "environment") == self.environment), None)
@@ -631,13 +659,15 @@ def _exhaustive(items, robots, edges, primary):
             if u[0] + it.cpu > rmap[rn].cpu_free + 1e-9 or u[1] + it.memory_mb + extra > rmap[rn].mem_free_mb + 1e-9:
                 continue
             new_lang = it.language not in u[2]
-            u[0] += it.cpu; u[1] += it.memory_mb + extra
+            u[0] += it.cpu
+            u[1] += it.memory_mb + extra
             if new_lang:
                 u[2].add(it.language)
             assign[it.name] = rn
             rec(k + 1)
             del assign[it.name]
-            u[0] -= it.cpu; u[1] -= it.memory_mb + extra
+            u[0] -= it.cpu
+            u[1] -= it.memory_mb + extra
             if new_lang:
                 u[2].discard(it.language)
 
@@ -736,8 +766,7 @@ def objective_value(item, robot, state, weights=None):
             traffic += e.weight
     link = robot.link or {}
     badness = sum(float(link.get(k) or 0.0) / 10.0 for k in ("latency_ms", "jitter_ms", "packet_loss"))
-    return (w["cpu"] * cpu_left + w["memory"] * mem_left - w["traffic"] * traffic / 1000.0
-            + w["primary"] * (1.0 if robot.name == state["primary"] else 0.0) - w["link"] * badness)
+    return (w["cpu"] * cpu_left + w["memory"] * mem_left - w["traffic"] * traffic / 1000.0 + w["primary"] * (1.0 if robot.name == state["primary"] else 0.0) - w["link"] * badness)
 
 
 ##
@@ -853,12 +882,9 @@ def capacity_report(items, robots):
     total_mem = sum(i.memory_mb for i in items)
     lines = [f"必要量の合計: CPU {total_cpu:.1f}%, メモリ {total_mem:.1f}MB (slave マネージャの分を除く)"]
     for r in robots:
-        lines.append(f"{r.name}: 空き CPU {r.cpu_free:.1f}%, メモリ {r.mem_free_mb:.1f}MB"
-                     + (f" (予約 {r.reserved_mb:.1f}MB)" if r.reserved_mb else "")
-                     + ("" if r.link_ok else " 通信状態がロボット間の制約を満たさない"))
+        lines.append(f"{r.name}: 空き CPU {r.cpu_free:.1f}%, メモリ {r.mem_free_mb:.1f}MB" + (f" (予約 {r.reserved_mb:.1f}MB)" if r.reserved_mb else "") + ("" if r.link_ok else " 通信状態がロボット間の制約を満たさない"))
     for i in items:
-        fits = [r.name for r in robots if r.name in i.candidates and i.cpu <= r.cpu_free
-                and i.memory_mb + i.slave_overhead_mb <= r.mem_free_mb]
+        fits = [r.name for r in robots if r.name in i.candidates and i.cpu <= r.cpu_free and i.memory_mb + i.slave_overhead_mb <= r.mem_free_mb]
         if not fits:
             lines.append(f"{i.name} (CPU {i.cpu}%, メモリ {i.memory_mb}+{i.slave_overhead_mb}MB) は単独でもどのロボットにも入らない")
     return lines

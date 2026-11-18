@@ -773,12 +773,11 @@ class Properties:
             pline += _str
             # if pline == "":
             # continue
-            
+
             end = len(_str.rstrip(" \t")) - 1
             if end >= 0 and _str[end] == "\\" and not OpenRTM_aist.isEscaped(_str, end):
                 if end != len(_str) - 1:
                     print(f"Warning: Trailing whitespace after '\\' prevents line continuation: {_str}")
-
 
             key = []
             value = []
@@ -1145,8 +1144,7 @@ class Properties:
         length = len(_str)
 
         while i < length:
-            if (_str[i] == ":" or _str[i] ==
-                    "=") and not OpenRTM_aist.isEscaped(_str, i):
+            if (_str[i] == ":" or _str[i] == "=") and not OpenRTM_aist.isEscaped(_str, i):
                 key.append(_str[0:i])
                 value.append(_str[i + 1:])
                 return
@@ -1251,9 +1249,9 @@ class Properties:
 
     def _propertyNames(self, names, curr_name, curr):
         if curr.leaf:
-            for l in curr.leaf:
-                next_name = curr_name + "." + l.name
-                self._propertyNames(names, next_name, l)
+            for child in curr.leaf:
+                next_name = curr_name + "." + child.name
+                self._propertyNames(names, next_name, child)
         else:
             names.append(curr_name)
 
@@ -1276,12 +1274,12 @@ class Properties:
 
     def _store(self, out, curr_name, curr):
         if curr.leaf:
-            for l in curr.leaf:
+            for child in curr.leaf:
                 if curr_name == "":
-                    next_name = l.name
+                    next_name = child.name
                 else:
-                    next_name = curr_name + "." + l.name
-                self._store(out, next_name, l)
+                    next_name = curr_name + "." + child.name
+                self._store(out, next_name, child)
 
         else:
             val = curr.value
@@ -1350,8 +1348,8 @@ class Properties:
             # out.write("\n")
             out[0] += "\n"
 
-        for l in curr.leaf:
-            self._dump(out, l, index + 1)
+        for child in curr.leaf:
+            self._dump(out, child, index + 1)
 
         return out[0]
 
